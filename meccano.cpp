@@ -60,9 +60,9 @@ void meccano::wifi_setup(String ssid, String password) {
 /**
 ** Server SETUP
 **/
-void meccano::server_setup(String host, String port) {
+void meccano::server_setup(String host, int port) {
   HOST = host;
-  PORT = port;
+  PORT = Str(port);
 }
 
 /**
@@ -70,6 +70,54 @@ void meccano::server_setup(String host, String port) {
 **/
 void meccano::led_setup(int gpio) {
   LED = gpio;
+}
+
+/**
+*  Create the fact
+*/
+String meccano::fact_create(String channel, String sensor, String value) {
+  String f = "";
+  f += "{";
+  f += "\"channel\":\"" + channel + "\",";
+  f += "\"start\":" + START_OF_OPERATION + ",";
+  f += "\"delta\":" + String(millis())  + ",";
+  f += "\"device_group\":" + String(DEVICE_GROUP)  + ",";
+  f += "\"device\": \"" + String(DEVICE_ID)  + "\",";
+  f += "\"sensor\":" + String(sensor)  + ",";
+  f += "\"data\":" + valor;
+  f += "}";
+  if(debug) Serial.println(f);
+  return f;
+}
+
+/**
+**  Send fact
+**/
+boolean meccano::fact_send(String fact) {
+  WiFiClient client;
+  if (!client.connect(HOST , PORT)) {
+    Serial.println("Connection lost.");
+    led_status(STATUS_NO_CONNECTION);
+    return false;
+  }
+  String envelope = String("POST ") + "http://" + HOST + ":" + PORT + "/" + DEVICE_ID +  "/ HTTP/1.1\r\n" +
+             "Accept: application/json\r\n" +
+             "Host: " + HOST + "\r\n" +
+             "Content-Type:application/json\r\n" +
+             "User-Agent: Meccano/1.0\r\n" +
+             "Content-Length: " + String(fact.length()) + "\r\n" +
+             "\r\n" +
+             fact +
+             "\r\n";
+  if(debug) client.print(envelope);
+  delay(10);
+  while(client.available()) {
+    String line = client.readStringUntil('\r');
+  }
+  Serial.println();
+  Serial.println("Closing connection.");
+  led_status(STATUS_DATA_SENT);
+  return true;
 }
 
 /**
@@ -162,54 +210,6 @@ boolean meccano::file_write(String fact) {
   } else {
     return false;
   }
-}
-
-/**
-*  Create the fact
-*/
-String meccano::fact_create(String channel, String sensor, String value) {
-  String f = "";
-  f += "{";
-  f += "\"channel\":\"" + channel + "\",";
-  f += "\"start\":" + START_OF_OPERATION + ",";
-  f += "\"delta\":" + String(millis())  + ",";
-  f += "\"device_group\":" + String(DEVICE_GROUP)  + ",";
-  f += "\"device\": \"" + String(DEVICE_ID)  + "\",";
-  f += "\"sensor\":" + String(sensor)  + ",";
-  f += "\"data\":" + valor;
-  f += "}";
-  if(debug) Serial.println(f);
-  return f;
-}
-
-/**
-**  Send fact
-**/
-boolean meccano::fact_send(String fact) {
-  WiFiClient client;
-  if (!client.connect(HOST , PORT)) {
-    Serial.println("Connection lost.");
-    led_status(STATUS_NO_CONNECTION);
-    return false;
-  }
-  String envelope = String("POST ") + "http://" + HOST + ":" + PORT + "/" + DEVICE_ID +  "/ HTTP/1.1\r\n" +
-             "Accept: application/json\r\n" +
-             "Host: " + HOST + "\r\n" +
-             "Content-Type:application/json\r\n" +
-             "User-Agent: Meccano/1.0\r\n" +
-             "Content-Length: " + String(fact.length()) + "\r\n" +
-             "\r\n" +
-             fact +
-             "\r\n";
-  if(debug) client.print(envelope);
-  delay(10);
-  while(client.available()) {
-    String line = client.readStringUntil('\r');
-  }
-  Serial.println();
-  Serial.println("Closing connection.");
-  led_status(STATUS_DATA_SENT);
-  return true;
 }
 
 /**

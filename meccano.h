@@ -19,23 +19,29 @@
 #ifndef MECCANO_H
 #define MECCANO_H
 
+// list of Ports of Meccano Mini Board and GPIOs
+const int PORT1 = 14
+const int PORT2 = 13
+const int PORT3 = 2
+const int PORT4 = 12
+
 class meccano {
   public:
     meccano();
     ~meccano();
     // Setup functions
     void wifi_setup(String ssid, String password);
-    void server_setup(String host, String port);
+    void server_setup(String host, int port);
     void led_setup(int gpio);
+    // Fact Functions
+    String fact_create(String channel, String sensor, String value);
+    boolean fact_send(String fact);
     // File functions
     boolean file_exists();
     boolean file_send();
     File file_open();
     void file_show();
     boolean file_write(String fact);
-    // Fact Functions
-    String fact_create(String channel, String sensor, String value);
-    boolean fact_send(String fact);
     // Registration functions
     String registration_create(String mac);
     String registration_send(String mac);
