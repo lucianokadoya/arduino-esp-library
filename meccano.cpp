@@ -123,6 +123,48 @@ boolean meccano::file_send() {
 }
 
 /**
+*  Open the local data file
+*/
+File meccano::file_open() {
+  File f = SPIFFS.open("/data.csv", "a+");
+  if(f) {
+  } else {
+    Serial.println("Could not open local data file...");
+  }
+  return f;
+}
+
+/**
+*  Shows the content of the local data file
+*/
+void meccano::file_show() {
+  Serial.println("Local data content: ");
+  File f = file_open();
+  while(f.available()) {
+      String line = f.readStringUntil('\n');
+      Serial.println(line);
+  }
+  f.close();
+}
+
+/**
+*  Write fact to local data file
+*/
+boolean meccano::file_write(String fact) {
+  Serial.println("Writing data to local file");
+  File f = file_open();
+  if(f) {
+    f.print(fact);
+    f.println();
+    f.close();
+    if(debug) file_show();
+    return true;
+  } else {
+    return false;
+  }
+}
+
+/**
 *  Create the fact
 */
 String meccano::fact_create(String channel, String sensor, String value) {
@@ -183,61 +225,6 @@ String meccano::registration_create(String mac) {
 }
 
 /**
-**  Show the status of device using a LED
-**/
-void meccano::led_status(int status[]){
-  // If led is not configured, skip
-  if(LED == 0) return;
-  int passo;
-  for (passo = 0; passo < 10; passo++) {
-    digitalWrite(LED, status[passo]);
-    delay (100);
-  }
-}
-
-/**
-*  Open the local data file
-*/
-File meccano::file_open() {
-  File f = SPIFFS.open("/data.csv", "a+");
-  if(f) {
-  } else {
-    Serial.println("Could not open local data file...");
-  }
-  return f;
-}
-
-/**
-*  Shows the content of the local data file
-*/
-void meccano::file_show() {
-  Serial.println("Local data content: ");
-  File f = file_open();
-  while(f.available()) {
-      String line = f.readStringUntil('\n');
-      Serial.println(line);
-  }
-  f.close();
-}
-
-/**
-*  Write fact to local data file
-*/
-boolean meccano::file_write(String fact) {
-  Serial.println("Writing data to local file");
-  File f = file_open();
-  if(f) {
-    f.print(fact);
-    f.println();
-    f.close();
-    if(debug) file_show();
-    return true;
-  } else {
-    return false;
-  }
-}
-
-/**
 **  Register device in the Meccano Gateway
 **/
 String meccano::registration_send(String mac) {
@@ -271,6 +258,19 @@ String meccano::registration_send(String mac) {
  Serial.println();
  Serial.println("Closing Connection.");
  led_status(STATUS_DATA_SENT);
+}
+
+/**
+**  Show the status of device using a LED
+**/
+void meccano::led_status(int status[]){
+  // If led is not configured, skip
+  if(LED == 0) return;
+  int passo;
+  for (passo = 0; passo < 10; passo++) {
+    digitalWrite(LED, status[passo]);
+    delay (100);
+  }
 }
 
 /**

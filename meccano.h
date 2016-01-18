@@ -23,19 +23,25 @@ class meccano {
   public:
     meccano();
     ~meccano();
+    // Setup functions
     void wifi_setup(String ssid, String password);
     void server_setup(String host, String port);
     void led_setup(int gpio);
+    // File functions
     boolean file_exists();
     boolean file_send();
-    String fact_create(String channel, String sensor, String value);
-    boolean fact_send(String fact);
-    String registration_create(String mac);
-    void led_status(int status[]);
     File file_open();
     void file_show();
     boolean file_write(String fact);
+    // Fact Functions
+    String fact_create(String channel, String sensor, String value);
+    boolean fact_send(String fact);
+    // Registration functions
+    String registration_create(String mac);
     String registration_send(String mac);
+    // Led functions
+    void led_status(int status[]);
+    // Message functions
     String time_get();
     String messages_get(String comando);
     void messages_execute();
