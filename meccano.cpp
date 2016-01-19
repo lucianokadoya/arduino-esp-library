@@ -99,7 +99,7 @@ void meccano::register(String mac) {
   int line = 0;
   WiFiClient client;
   if (!client.connect(HOST , PORT)) {
-    Serial.println("Conexao falhou");
+    Serial.println("Connection failed.");
     led_status(STATUS_NO_CONNECTION);
     ESP.restart();
   }
