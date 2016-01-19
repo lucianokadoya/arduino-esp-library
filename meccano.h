@@ -33,18 +33,18 @@ class meccano {
     void wifi_setup(String ssid, String password);
     void server_setup(String host, int port);
     void led_setup(int gpio);
-    // Fact Functions
-    String fact_create(String channel, String sensor, String value);
-    boolean fact_send(String fact);
-    // File functions
-    boolean file_exists();
-    boolean file_send();
-    File file_open();
-    void file_show();
-    boolean file_write(String fact);
     // Registration functions
     String registration_create(String mac);
     String registration_send(String mac);
+    // Fact Functions
+    String fact_create(String channel, String sensor, String value);
+    boolean fact_send(String fact);
+    // Data functions
+    boolean data_exists();
+    boolean data_sync();
+    File data_open();
+    void data_show();
+    boolean file_write(String fact);
     // Led functions
     void led_status(int status[]);
     // Message functions

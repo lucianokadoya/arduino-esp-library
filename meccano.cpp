@@ -72,6 +72,57 @@ void meccano::led_setup(int gpio) {
   LED = gpio;
 }
 
+
+/**
+**  Create the registration record
+**/
+String meccano::registration_create(String mac) {
+  String reg = "";
+  reg += "{";
+  reg += "\"operation\": \"PUT\",";
+  reg += "\"device\": \"" + mac + "\"";
+  reg += "}";
+  return reg;
+}
+
+/**
+**  Register device in the Meccano Gateway
+**/
+String meccano::registration_send(String mac) {
+  int linha = 0;
+  WiFiClient client;
+  if (!client.connect(HOST , PORT)) {
+    Serial.println("Conexao falhou");
+    led_status(STATUS_NO_CONNECTION);
+  }
+  String dadosJson = registration_create(mac);
+  String device_group;
+  String envelope = String("PUT ") + "http://" + HOST + "/api/registration/" + " HTTP/1.1\r\n" +
+             "Accept: application/json\r\n" +
+             "Host: " + HOST + "\r\n" +
+             "Content-Type: application/json\r\n" +
+             "User-Agent: Meccano/1.0\r\n" +
+             "Content-Length: " + String(dadosJson.length()) + "\r\n" +
+             "\r\n" +
+             dadosJson + "\r\n" +
+             "\r\n";
+  if(debug) client.print(envelope);
+  delay(100);
+  while(client.available()) {
+    String line = client.readStringUntil('\r');
+    linha++;
+    if (linha == 11) {
+     device_group = line.substring(1, 4);
+     return device_group;
+    }
+  }
+ Serial.println();
+ Serial.println("Closing Connection.");
+ led_status(STATUS_DATA_SENT);
+}
+
+
+
 /**
 *  Create the fact
 */
@@ -123,14 +174,14 @@ boolean meccano::fact_send(String fact) {
 /**
 **  Check if file exists
 **/
-boolean meccano::file_exists() {
+boolean meccano::data_exists() {
   return SPIFFS.exists("/data.csv");
 }
 
 /**
 * Send all data of file and then remove it
 **/
-boolean meccano::file_send() {
+boolean meccano::data_send() {
   Serial.println("Testing Connection...");
   WiFiClient client;
   if (!client.connect(HOST, PORT)) {
@@ -173,7 +224,7 @@ boolean meccano::file_send() {
 /**
 *  Open the local data file
 */
-File meccano::file_open() {
+File meccano::data_open() {
   File f = SPIFFS.open("/data.csv", "a+");
   if(f) {
   } else {
@@ -185,7 +236,7 @@ File meccano::file_open() {
 /**
 *  Shows the content of the local data file
 */
-void meccano::file_show() {
+void meccano::data_show() {
   Serial.println("Local data content: ");
   File f = file_open();
   while(f.available()) {
@@ -198,7 +249,7 @@ void meccano::file_show() {
 /**
 *  Write fact to local data file
 */
-boolean meccano::file_write(String fact) {
+boolean meccano::data_write(String fact) {
   Serial.println("Writing data to local file");
   File f = file_open();
   if(f) {
@@ -210,54 +261,6 @@ boolean meccano::file_write(String fact) {
   } else {
     return false;
   }
-}
-
-/**
-**  Create the registration record
-**/
-String meccano::registration_create(String mac) {
-  String reg = "";
-  reg += "{";
-  reg += "\"operation\": \"PUT\",";
-  reg += "\"device\": \"" + mac + "\"";
-  reg += "}";
-  return reg;
-}
-
-/**
-**  Register device in the Meccano Gateway
-**/
-String meccano::registration_send(String mac) {
-  int linha = 0;
-  WiFiClient client;
-  if (!client.connect(HOST , PORT)) {
-    Serial.println("Conexao falhou");
-    led_status(STATUS_NO_CONNECTION);
-  }
-  String dadosJson = registration_create(mac);
-  String device_group;
-  String envelope = String("PUT ") + "http://" + HOST + "/api/registration/" + " HTTP/1.1\r\n" +
-             "Accept: application/json\r\n" +
-             "Host: " + HOST + "\r\n" +
-             "Content-Type: application/json\r\n" +
-             "User-Agent: Meccano/1.0\r\n" +
-             "Content-Length: " + String(dadosJson.length()) + "\r\n" +
-             "\r\n" +
-             dadosJson + "\r\n" +
-             "\r\n";
-  if(debug) client.print(envelope);
-  delay(100);
-  while(client.available()) {
-    String line = client.readStringUntil('\r');
-    linha++;
-    if (linha == 11) {
-     device_group = line.substring(1, 4);
-     return device_group;
-    }
-  }
- Serial.println();
- Serial.println("Closing Connection.");
- led_status(STATUS_DATA_SENT);
 }
 
 /**
