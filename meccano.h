@@ -25,7 +25,33 @@ const int PORT2 = 13
 const int PORT3 = 2
 const int PORT4 = 12
 
+// ==================================================
+String START_OF_OPERATION = "0";
+String DEVICE_GROUP = "0";
+String HOST = "";
+String PORT = "0";
+String SSID_ID = "";
+String SSID_PW = "";
+int    LED = 0;
+
+String HOST;
+String PORT;
+String DEVICE_GROUP;
+
+// Other constants
+const boolean debug = true;
+#define BLOCK_SIZE 15
+
+// Led status list
+int STATUS_NO_CONNECTION[10] = {0,0,0,0,0,1,1,1,1,0};
+int STATUS_DATA_SENT[10]     = {1,0,1,0,1,0,0,0,0,0};
+int STATUS_DATA_ERROR[10]    = {1,1,1,1,1,1,1,1,1,0};
+
+// Checkpoint in time
+unsigned long CHECK_POINT = 0;
+
 class meccano {
+
   public:
     meccano();
     ~meccano();
@@ -33,22 +59,29 @@ class meccano {
     void wifi_setup(String ssid, String password);
     void server_setup(String host, int port);
     void led_setup(int gpio);
+    void clock_setup();
     // Registration functions
-    String registration_create(String mac);
-    String registration_send(String mac);
+    String register(String mac);
     // Fact Functions
     String fact_create(String channel, String sensor, String value);
     boolean fact_send(String fact);
     // Data functions
     boolean data_exists();
     boolean data_sync();
-    File data_open();
     void data_show();
-    boolean file_write(String fact);
+    boolean data_write(String fact);
     // Led functions
     void led_status(int status[]);
     // Message functions
-    String time_get();
+    void messages_process(unsigned long elapsed_time);
+    // Utility functions
+    String getMacAddress();
+    void checkpoint();
+    boolean elapsed(int seconds);
+
+  private:
+    String registration_create(String mac);
+    File data_open();
     String messages_get(String comando);
     void messages_execute();
 }

@@ -19,30 +19,6 @@
 #include <ESP8266WiFi.h>
 #include <FS.h>
 
-// ==================================================
-String START_OF_OPERATION = "0";
-String DEVICE_GROUP = "0";
-String HOST = "";
-String PORT = "0";
-String SSID_ID = "";
-String SSID_PW = "";
-int    LED = 0;
-
-// list of Ports of Meccano Mini Board and GPIOs
-const int PORT1 = 14
-const int PORT2 = 13
-const int PORT3 = 2
-const int PORT4 = 12
-
-// Other constants
-const boolean debug = true;
-#define BLOCK_SIZE 15
-
-// Led status list
-int STATUS_NO_CONNECTION[10] = {0,0,0,0,0,1,1,1,1,0};
-int STATUS_DATA_SENT[10]     = {1,0,1,0,1,0,0,0,0,0};
-int STATUS_DATA_ERROR[10]    = {1,1,1,1,1,1,1,1,1,0};
-
 // Constructor
 meccano::meccano() {}
 
@@ -72,6 +48,37 @@ void meccano::led_setup(int gpio) {
   LED = gpio;
 }
 
+/**
+**  Clock setup
+**/
+void meccano::clock_setup() {
+  int line = 0;
+  String serverTime;
+  Serial.println("Getting time from server... hora do servidor...");
+  WiFiClient client;
+  if (!client.connect(HOST, PORT)) {
+    Serial.println("Connection Failed...");
+    led_status(STATUS_NO_CONNECTION);
+    ESP.restart();
+  }
+  client.print(String("GET ") + "http://" + HOST + ":" + PORT + "/" + MAC_char + " HTTP/1.1\r\n" +
+               "Host: " + HOST + "\r\n" +
+               "Connection: close\r\n\r\n");
+  delay(5000);
+  while(client.available()) {
+    String line = client.readStringUntil('\r');
+    line++;
+    if (line == 11) {
+     serverTime = line.substring(1, 14);
+     START_OF_OPERATION = serverTime;
+     break;
+    }
+  }
+  Serial.println();
+  Serial.println("Closing Connection...");
+}
+
+
 
 /**
 **  Create the registration record
@@ -88,12 +95,13 @@ String meccano::registration_create(String mac) {
 /**
 **  Register device in the Meccano Gateway
 **/
-String meccano::registration_send(String mac) {
-  int linha = 0;
+void meccano::register(String mac) {
+  int line = 0;
   WiFiClient client;
   if (!client.connect(HOST , PORT)) {
     Serial.println("Conexao falhou");
     led_status(STATUS_NO_CONNECTION);
+    ESP.restart();
   }
   String dadosJson = registration_create(mac);
   String device_group;
@@ -110,10 +118,10 @@ String meccano::registration_send(String mac) {
   delay(100);
   while(client.available()) {
     String line = client.readStringUntil('\r');
-    linha++;
-    if (linha == 11) {
-     device_group = line.substring(1, 4);
-     return device_group;
+    line++;
+    if (line == 11) {
+     DEVICE_GROUP = line.substring(1, 4);
+     break;
     }
   }
  Serial.println();
@@ -121,7 +129,35 @@ String meccano::registration_send(String mac) {
  led_status(STATUS_DATA_SENT);
 }
 
+/**
+**  Get the mac-address of the ESP
+**/
+String meccano::getMacAddress() {
+  // Obter Mac Address da placa de rede (ID Device)
+  char mac[18];
+  byte MAC_array[6];
+  WiFi.macAddress(MAC_array);
+  sprintf(mac,"%s%02x:%s%02x:%s%02x:%s%02x:%s%02x:%s%02x\0",
+      MAC_array[0], MAC_array[1], MAC_array[2],
+      MAC_array[3], MAC_array[4], MAC_array[5]
+  );
+  return String(mac);
+}
 
+/**
+**  Set a checkpoint in time
+**/
+void meccano::checkpoint() {
+  CHECK_POINT = millis();
+}
+
+/**
+**  Check if has passed n-seconds
+**/
+boolean meccano::elapsed(unsigned long elapsed_time) {
+  unsigned long since_last_checkpoint = millis() - CHECK_POINT;
+  return(elapsed_time >= since_last_checkpoint);
+}
 
 /**
 *  Create the fact
@@ -277,37 +313,6 @@ void meccano::led_status(int status[]){
 }
 
 /**
-**  get time from server
-**/
-String meccano::time_get() {
-  int linha = 0;
-  String horaServidor;
-  Serial.println("Getting time from server... hora do servidor...");
-  WiFiClient client;
-  unsigned long hora;
-  if (!client.connect(HOST, PORT)) {
-    Serial.println("Falha na conexao...");
-    return "\0";
-  }
-  client.print(String("GET ") + "http://" + HOST + ":" + PORT + "/" + MAC_char + " HTTP/1.1\r\n" +
-               "Host: " + HOST + "\r\n" +
-               "Connection: close\r\n\r\n");
-  delay(5000);
-  while(client.available()) {
-    String line = client.readStringUntil('\r');
-    //Serial.println(line);
-    linha++;
-    if (linha == 11) {
-     horaServidor = line.substring(1, 14);
-     return horaServidor;
-    }
-  }
-  Serial.println();
-  Serial.println("Fechando conexao...");
-  return "\0";
-}
-
-/**
 ** Parse messages
 **/
 String meccano::messages_get(String comando) {
@@ -351,4 +356,15 @@ void meccano::messages_execute() {
   }
   Serial.println();
   Serial.println("Closing connection...");
+}
+
+/**
+**  Process messages
+**/
+void meccano::messages_process(unsigned long elapsed_time) {
+  if(elapsed(elapsed_time)) {
+    messages_execute();
+    // Create a new checkpoint
+    checkpoint();
+  }
 }
