@@ -19,30 +19,6 @@
 #include <ESP8266WiFi.h>
 #include <FS.h>
 
-// ==================================================
-String START_OF_OPERATION = "0";
-String DEVICE_GROUP = "0";
-String HOST = "";
-String PORT = "0";
-String SSID_ID = "";
-String SSID_PW = "";
-int    LED = 0;
-
-// list of Ports of Meccano Mini Board and GPIOs
-const int PORT1 = 14
-const int PORT2 = 13
-const int PORT3 = 2
-const int PORT4 = 12
-
-// Other constants
-const boolean debug = true;
-#define BLOCK_SIZE 15
-
-// Led status list
-int STATUS_NO_CONNECTION[10] = {0,0,0,0,0,1,1,1,1,0};
-int STATUS_DATA_SENT[10]     = {1,0,1,0,1,0,0,0,0,0};
-int STATUS_DATA_ERROR[10]    = {1,1,1,1,1,1,1,1,1,0};
-
 // Constructor
 meccano::meccano() {}
 
@@ -60,9 +36,9 @@ void meccano::wifi_setup(String ssid, String password) {
 /**
 ** Server SETUP
 **/
-void meccano::server_setup(String host, String port) {
+void meccano::server_setup(String host, int port) {
   HOST = host;
-  PORT = port;
+  PORT = Str(port);
 }
 
 /**
@@ -73,53 +49,114 @@ void meccano::led_setup(int gpio) {
 }
 
 /**
-**  Check if file exists
+**  Clock setup
 **/
-boolean meccano::file_exists() {
-  return SPIFFS.exists("/data.csv");
+void meccano::clock_setup() {
+  int line = 0;
+  String serverTime;
+  Serial.println("Getting time from server... hora do servidor...");
+  WiFiClient client;
+  if (!client.connect(HOST, PORT)) {
+    Serial.println("Connection Failed...");
+    led_status(STATUS_NO_CONNECTION);
+    ESP.restart();
+  }
+  client.print(String("GET ") + "http://" + HOST + ":" + PORT + "/" + MAC_char + " HTTP/1.1\r\n" +
+               "Host: " + HOST + "\r\n" +
+               "Connection: close\r\n\r\n");
+  delay(5000);
+  while(client.available()) {
+    String line = client.readStringUntil('\r');
+    line++;
+    if (line == 11) {
+     serverTime = line.substring(1, 14);
+     START_OF_OPERATION = serverTime;
+     break;
+    }
+  }
+  Serial.println();
+  Serial.println("Closing Connection...");
+}
+
+
+
+/**
+**  Create the registration record
+**/
+String meccano::registration_create(String mac) {
+  String reg = "";
+  reg += "{";
+  reg += "\"operation\": \"PUT\",";
+  reg += "\"device\": \"" + mac + "\"";
+  reg += "}";
+  return reg;
 }
 
 /**
-* Send all data of file and then remove it
+**  Register device in the Meccano Gateway
 **/
-boolean meccano::file_send() {
-  Serial.println("Testing Connection...");
+void meccano::register(String mac) {
+  int line = 0;
   WiFiClient client;
-  if (!client.connect(HOST, PORT)) {
-    Serial.println("No connection to server. The data will be sent in the future...");
-    return false;
+  if (!client.connect(HOST , PORT)) {
+    Serial.println("Connection failed.");
+    led_status(STATUS_NO_CONNECTION);
+    ESP.restart();
   }
-  int numLinhas = 0;
-  // If the file exists, send it
-    Serial.println("Checking local data...");
-    Serial.println("Local data exists. Sending...");
-    File f = file_open();
-    String bloco = "[";
-    while(f.available()) {
-      String line = f.readStringUntil('\n');
-      bloco += line;
-      numLinhas++;
-      if(numLinhas > (BLOCK_SIZE - 1)) {
-        bloco += "]";
-        Serial.println(bloco);
-        fact_send(bloco);
-        bloco = "[";
-        numLinhas = 0;
-      } else {
-          bloco += ",";
-      }
+  String dadosJson = registration_create(mac);
+  String device_group;
+  String envelope = String("PUT ") + "http://" + HOST + "/api/registration/" + " HTTP/1.1\r\n" +
+             "Accept: application/json\r\n" +
+             "Host: " + HOST + "\r\n" +
+             "Content-Type: application/json\r\n" +
+             "User-Agent: Meccano/1.0\r\n" +
+             "Content-Length: " + String(dadosJson.length()) + "\r\n" +
+             "\r\n" +
+             dadosJson + "\r\n" +
+             "\r\n";
+  if(debug) client.print(envelope);
+  delay(100);
+  while(client.available()) {
+    String line = client.readStringUntil('\r');
+    line++;
+    if (line == 11) {
+     DEVICE_GROUP = line.substring(1, 4);
+     break;
     }
-    // If there is any remaining data to send...
-    if(numLinhas > 0) {
-        bloco = bloco.substring(0, bloco.length() - 1);
-        bloco = bloco + "]";
-        Serial.println(bloco);
-        fact_send(bloco);
-    }
-    f.close();
-    Serial.println("Erasing local data...");
-    SPIFFS.remove("/data.csv");
-  return true;
+  }
+ Serial.println();
+ Serial.println("Closing Connection.");
+ led_status(STATUS_DATA_SENT);
+}
+
+/**
+**  Get the mac-address of the ESP
+**/
+String meccano::getMacAddress() {
+  // Obter Mac Address da placa de rede (ID Device)
+  char mac[18];
+  byte MAC_array[6];
+  WiFi.macAddress(MAC_array);
+  sprintf(mac,"%s%02x:%s%02x:%s%02x:%s%02x:%s%02x:%s%02x\0",
+      MAC_array[0], MAC_array[1], MAC_array[2],
+      MAC_array[3], MAC_array[4], MAC_array[5]
+  );
+  return String(mac);
+}
+
+/**
+**  Set a checkpoint in time
+**/
+void meccano::checkpoint() {
+  CHECK_POINT = millis();
+}
+
+/**
+**  Check if has passed n-seconds
+**/
+boolean meccano::elapsed(unsigned long elapsed_time) {
+  unsigned long since_last_checkpoint = millis() - CHECK_POINT;
+  return(elapsed_time >= since_last_checkpoint);
 }
 
 /**
@@ -171,34 +208,59 @@ boolean meccano::fact_send(String fact) {
 }
 
 /**
-**  Create the registration record
+**  Check if file exists
 **/
-String meccano::registration_create(String mac) {
-  String reg = "";
-  reg += "{";
-  reg += "\"operation\": \"PUT\",";
-  reg += "\"device\": \"" + mac + "\"";
-  reg += "}";
-  return reg;
+boolean meccano::data_exists() {
+  return SPIFFS.exists("/data.csv");
 }
 
 /**
-**  Show the status of device using a LED
+* Send all data of file and then remove it
 **/
-void meccano::led_status(int status[]){
-  // If led is not configured, skip
-  if(LED == 0) return;
-  int passo;
-  for (passo = 0; passo < 10; passo++) {
-    digitalWrite(LED, status[passo]);
-    delay (100);
+boolean meccano::data_send() {
+  Serial.println("Testing Connection...");
+  WiFiClient client;
+  if (!client.connect(HOST, PORT)) {
+    Serial.println("No connection to server. The data will be sent in the future...");
+    return false;
   }
+  int numLinhas = 0;
+  // If the file exists, send it
+    Serial.println("Checking local data...");
+    Serial.println("Local data exists. Sending...");
+    File f = file_open();
+    String bloco = "[";
+    while(f.available()) {
+      String line = f.readStringUntil('\n');
+      bloco += line;
+      numLinhas++;
+      if(numLinhas > (BLOCK_SIZE - 1)) {
+        bloco += "]";
+        Serial.println(bloco);
+        fact_send(bloco);
+        bloco = "[";
+        numLinhas = 0;
+      } else {
+          bloco += ",";
+      }
+    }
+    // If there is any remaining data to send...
+    if(numLinhas > 0) {
+        bloco = bloco.substring(0, bloco.length() - 1);
+        bloco = bloco + "]";
+        Serial.println(bloco);
+        fact_send(bloco);
+    }
+    f.close();
+    Serial.println("Erasing local data...");
+    SPIFFS.remove("/data.csv");
+  return true;
 }
 
 /**
 *  Open the local data file
 */
-File meccano::file_open() {
+File meccano::data_open() {
   File f = SPIFFS.open("/data.csv", "a+");
   if(f) {
   } else {
@@ -210,7 +272,7 @@ File meccano::file_open() {
 /**
 *  Shows the content of the local data file
 */
-void meccano::file_show() {
+void meccano::data_show() {
   Serial.println("Local data content: ");
   File f = file_open();
   while(f.available()) {
@@ -223,7 +285,7 @@ void meccano::file_show() {
 /**
 *  Write fact to local data file
 */
-boolean meccano::file_write(String fact) {
+boolean meccano::data_write(String fact) {
   Serial.println("Writing data to local file");
   File f = file_open();
   if(f) {
@@ -238,70 +300,16 @@ boolean meccano::file_write(String fact) {
 }
 
 /**
-**  Register device in the Meccano Gateway
+**  Show the status of device using a LED
 **/
-String meccano::registration_send(String mac) {
-  int linha = 0;
-  WiFiClient client;
-  if (!client.connect(HOST , PORT)) {
-    Serial.println("Conexao falhou");
-    led_status(STATUS_NO_CONNECTION);
+void meccano::led_status(int status[]){
+  // If led is not configured, skip
+  if(LED == 0) return;
+  int passo;
+  for (passo = 0; passo < 10; passo++) {
+    digitalWrite(LED, status[passo]);
+    delay (100);
   }
-  String dadosJson = registration_create(mac);
-  String device_group;
-  String envelope = String("PUT ") + "http://" + HOST + "/api/registration/" + " HTTP/1.1\r\n" +
-             "Accept: application/json\r\n" +
-             "Host: " + HOST + "\r\n" +
-             "Content-Type: application/json\r\n" +
-             "User-Agent: Meccano/1.0\r\n" +
-             "Content-Length: " + String(dadosJson.length()) + "\r\n" +
-             "\r\n" +
-             dadosJson + "\r\n" +
-             "\r\n";
-  if(debug) client.print(envelope);
-  delay(100);
-  while(client.available()) {
-    String line = client.readStringUntil('\r');
-    linha++;
-    if (linha == 11) {
-     device_group = line.substring(1, 4);
-     return device_group;
-    }
-  }
- Serial.println();
- Serial.println("Closing Connection.");
- led_status(STATUS_DATA_SENT);
-}
-
-/**
-**  get time from server
-**/
-String meccano::time_get() {
-  int linha = 0;
-  String horaServidor;
-  Serial.println("Getting time from server... hora do servidor...");
-  WiFiClient client;
-  unsigned long hora;
-  if (!client.connect(HOST, PORT)) {
-    Serial.println("Falha na conexao...");
-    return "\0";
-  }
-  client.print(String("GET ") + "http://" + HOST + ":" + PORT + "/" + MAC_char + " HTTP/1.1\r\n" +
-               "Host: " + HOST + "\r\n" +
-               "Connection: close\r\n\r\n");
-  delay(5000);
-  while(client.available()) {
-    String line = client.readStringUntil('\r');
-    //Serial.println(line);
-    linha++;
-    if (linha == 11) {
-     horaServidor = line.substring(1, 14);
-     return horaServidor;
-    }
-  }
-  Serial.println();
-  Serial.println("Fechando conexao...");
-  return "\0";
 }
 
 /**
@@ -348,4 +356,15 @@ void meccano::messages_execute() {
   }
   Serial.println();
   Serial.println("Closing connection...");
+}
+
+/**
+**  Process messages
+**/
+void meccano::messages_process(unsigned long elapsed_time) {
+  if(elapsed(elapsed_time)) {
+    messages_execute();
+    // Create a new checkpoint
+    checkpoint();
+  }
 }
