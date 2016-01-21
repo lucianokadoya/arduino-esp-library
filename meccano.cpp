@@ -57,15 +57,13 @@ meccano::meccano() {}
 // Destructor
 meccano::~meccano() {}
 
+
 /**
-** WIFI SETUP
+**  All in one (main) setup function
 **/
-void meccano::wifi_setup(char *ssid, char *password) {
-  SSID_ID = ssid;
-  SSID_PW = password;
-  WiFi.begin(ssid, password);
-  int retries = CONNECTION_RETRIES;
+boolean meccano::setup(char *ssid, char *password, char *host, int port) {
   delay(5000);
+  SPIFFS.begin();
   Serial.println();
   Serial.println("Meccano Mini");
   Serial.println("(c) 2015-2016 - Magazine Luiza");
@@ -77,6 +75,22 @@ void meccano::wifi_setup(char *ssid, char *password) {
   Serial.print("Total flash memory = ");
   Serial.println(ESP.getFlashChipSize());
   delay(1000);
+  boolean dev = device_setup();
+  boolean wifi = wifi_setup(ssid, password);
+  boolean server = server_setup(host, port);
+  boolean reg = registration();
+  boolean clock = clock_setup();
+  return (dev && wifi && server && reg && clock);
+}
+
+/**
+** WIFI SETUP
+**/
+boolean meccano::wifi_setup(char *ssid, char *password) {
+  SSID_ID = ssid;
+  SSID_PW = password;
+  WiFi.begin(ssid, password);
+  int retries = CONNECTION_RETRIES;
   Serial.println("Starting wifi...");
   while (WiFi.status() != WL_CONNECTED) {
     led_status(STATUS_CONNECTION);
@@ -89,30 +103,32 @@ void meccano::wifi_setup(char *ssid, char *password) {
     delay(1000);
   }
   Serial.println();
+  return true;
 }
 
 /**
 ** Server SETUP
 **/
-void meccano::server_setup(char *host, int port) {
+boolean meccano::server_setup(char *host, int port) {
   Serial.println("Configuring server...");
   HOST = host;
   PORT = port;
+  return true;
 }
 
 /**
 ** LED STATUS SETUP
 **/
-void meccano::led_setup(int gpio) {
-  Serial.println("Configuring LED...");
+boolean meccano::led_setup(int gpio) {
   LED = gpio;
   pinMode(LED, OUTPUT);
+  return true;
 }
 
 /**
 **  Clock setup
 **/
-void meccano::clock_setup() {
+boolean meccano::clock_setup() {
   int lineNumber = 0;
   String serverTime;
   Serial.println("Getting time from server...");
@@ -139,6 +155,7 @@ void meccano::clock_setup() {
   Serial.println("Closing Connection...");
   // Create the checkpoint 0 for message processing
   checkpoint(0);
+  return true;
 }
 
 /**
@@ -156,7 +173,7 @@ String meccano::registration_create(String mac) {
 /**
 **  Register device in the Meccano Gateway
 **/
-void meccano::registration() {
+boolean meccano::registration() {
   int lineNumber = 0;
   WiFiClient client;
   if (!client.connect(HOST , PORT)) {
@@ -188,6 +205,7 @@ void meccano::registration() {
  Serial.println();
  Serial.println("Closing Connection.");
  led_status(STATUS_DATA_SENT);
+ return true;
 }
 
 
@@ -207,7 +225,7 @@ void meccano::led_status(int status[]){
 /**
 **  Get the mac-address of the ESP
 **/
-String meccano::getMacAddress() {
+boolean meccano::device_setup() {
   String octet;
   byte MAC_array[6];
   Serial.println("Getting the mac-address...");
@@ -219,7 +237,7 @@ String meccano::getMacAddress() {
     if(i < 5)  mac += ":";
   }
   MAC_ADDRESS = mac;
-  return mac;
+  return true;
 }
 
 /**
@@ -293,7 +311,7 @@ void meccano::messages_process(unsigned long elapsed_time) {
     messages_execute();
     // Check if there is data in the local device to send
     if(data_exists()) {
-      data_send();
+      data_sync();
     }
     // Create a new checkpoint
     checkpoint(0);
@@ -362,7 +380,7 @@ boolean meccano::data_exists() {
 /**
 * Send all data of file and then remove it
 **/
-boolean meccano::data_send() {
+boolean meccano::data_sync() {
   Serial.println("Testing Connection...");
   WiFiClient client;
   if (!client.connect(HOST, PORT)) {
@@ -442,4 +460,11 @@ boolean meccano::data_write(String fact) {
   } else {
     return false;
   }
+}
+
+/**
+**  Get the ID (mac-address) of the device
+**/
+String meccano::get_id() {
+  return MAC_ADDRESS;
 }
