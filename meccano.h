@@ -36,32 +36,41 @@ class meccano {
     meccano();
     ~meccano();
     // Setup functions
-    void wifi_setup(char *ssid, char *password);
-    void server_setup(char *host, int port);
-    void led_setup(int gpio);
-    void clock_setup();
-    void registration();
+    boolean led_setup(int gpio);
+    boolean setup(char *ssid, char *password, char *host, int port);
+
+    // Data functions
+    boolean data_exists();
+    boolean data_sync();
+    void data_show();
+
     // Led functions
     void led_status(int status[]);
-    // Utility functions
-    String getMacAddress();
+
     // Checkpoint functions
     void checkpoint(int id);
     boolean elapsed(int id, unsigned long elapsed_time);
+
     // Messages functions
     void messages_process(unsigned long elapsed_time);
+
     // Fact functions
     String fact_create(String channel, int sensor, int value);
     boolean fact_send(String fact);
 
+    // Utility functions
+    String get_id();
+
   private:
+    boolean device_setup();
+    boolean wifi_setup(char *ssid, char *password);
+    boolean server_setup(char *host, int port);
+    boolean clock_setup();
+    boolean registration();
     String messages_get(String command);
     void messages_execute();
     String registration_create(String mac);
-    boolean data_exists();
-    boolean data_send();
     File data_open();
-    void data_show();
     boolean data_write(String fact);
 };
 
