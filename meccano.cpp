@@ -47,7 +47,7 @@ unsigned long CHECK_POINT[11] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 String MAC_ADDRESS = "99:99:99:99:99:99";
 
 // DEBUG. Default = ON
-boolean debug = true;
+boolean DEBUG = true;
 
 #define BLOCK_SIZE 15
 
@@ -65,7 +65,7 @@ boolean meccano::setup(char *ssid, char *password, char *host, int port) {
   delay(5000);
   SPIFFS.begin();
   Serial.println();
-  Serial.println("Meccano Mini");
+  Serial.println("Meccano IoT");
   Serial.println("(c) 2015-2016 - Magazine Luiza");
   Serial.println("                Arquitetura de Solucoes");
   Serial.println();
@@ -147,6 +147,13 @@ boolean meccano::clock_setup() {
     lineNumber++;
     if (lineNumber == 11) {
      serverTime = line.substring(1, 14);
+     // Check if the timestamp
+     String firstDigit = serverTime.substring(1, 1);
+     if(!isDigit(firstDigit.charAt(1))) {
+       Serial.println("Time not received or not authorized to connect to Meccano Network. Rebooting...");
+       led_status(STATUS_NO_CONNECTION);
+       ESP.restart();
+     }
      START_OF_OPERATION = serverTime;
      Serial.println("Start of operation: " + START_OF_OPERATION);
      break;
@@ -192,7 +199,7 @@ boolean meccano::registration() {
              "\r\n" +
              dadosJson + "\r\n" +
              "\r\n";
-  if(debug) client.print(envelope);
+  if(DEBUG) client.print(envelope);
   delay(100);
   while(client.available()) {
     String line = client.readStringUntil('\r');
@@ -237,6 +244,7 @@ boolean meccano::device_setup() {
     if(i < 5)  mac += ":";
   }
   MAC_ADDRESS = mac;
+  Serial.println("Device ID: " + MAC_ADDRESS);
   return true;
 }
 
@@ -332,7 +340,7 @@ String meccano::fact_create(String channel, int sensor, int value) {
   f += "\"sensor\":" + String(sensor)  + ",";
   f += "\"data\":" + String(value);
   f += "}";
-  if(debug) Serial.println(f);
+  if(DEBUG) Serial.println(f);
   return f;
 }
 
@@ -357,7 +365,7 @@ boolean meccano::fact_send(String fact) {
              "\r\n" +
              fact +
              "\r\n";
-  if(debug) Serial.println(envelope);
+  if(DEBUG) Serial.println(envelope);
   client.print(envelope);
   delay(10);
   while(client.available()) {
@@ -455,7 +463,7 @@ boolean meccano::data_write(String fact) {
     f.print(fact);
     f.println();
     f.close();
-    if(debug) data_show();
+    if(DEBUG) data_show();
     return true;
   } else {
     return false;
