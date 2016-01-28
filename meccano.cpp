@@ -147,6 +147,13 @@ boolean meccano::clock_setup() {
     lineNumber++;
     if (lineNumber == 11) {
      serverTime = line.substring(1, 14);
+     // Check if the timestamp
+     String firstDigit = serverTime.substring(1, 1);
+     if(!isDigit(firstDigit.charAt(1))) {
+       Serial.println("Time not received or not authorized to connect to Meccano Network. Rebooting...");
+       led_status(STATUS_NO_CONNECTION);
+       ESP.restart();
+     }
      START_OF_OPERATION = serverTime;
      Serial.println("Start of operation: " + START_OF_OPERATION);
      break;
@@ -237,6 +244,7 @@ boolean meccano::device_setup() {
     if(i < 5)  mac += ":";
   }
   MAC_ADDRESS = mac;
+  Serial.println("Device ID: " + MAC_ADDRESS);
   return true;
 }
 
