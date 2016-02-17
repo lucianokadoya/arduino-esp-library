@@ -148,8 +148,8 @@ boolean meccano::clock_setup() {
     if (lineNumber == 11) {
      serverTime = line.substring(1, 14);
      // Check if the timestamp
-     String firstDigit = serverTime.substring(1, 1);
-     if(!isDigit(firstDigit.charAt(1))) {
+     String firstDigit = serverTime.substring(0, 1);
+     if(!isDigit(firstDigit.charAt(0))) {
        Serial.println("Time not received or not authorized to connect to Meccano Network. Rebooting...");
        led_status(STATUS_NO_CONNECTION);
        ESP.restart();
