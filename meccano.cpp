@@ -29,6 +29,7 @@ uint16_t PORT = 80;
 String DEVICE_GROUP = "0";
 
 int LED = 0;
+int BUZZ = 0;
 
 // Led status list
 int STATUS_NO_CONNECTION[10] = {0,0,0,0,0,1,1,1,1,0};
@@ -47,7 +48,7 @@ unsigned long CHECK_POINT[11] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 String MAC_ADDRESS = "99:99:99:99:99:99";
 
 // DEBUG. Default = ON
-boolean DEBUG = true;
+boolean DEBUG = false;
 
 #define BLOCK_SIZE 15
 
@@ -122,6 +123,15 @@ boolean meccano::server_setup(char *host, int port) {
 boolean meccano::led_setup(int gpio) {
   LED = gpio;
   pinMode(LED, OUTPUT);
+  return true;
+}
+
+/**
+** BUZZ SETUP
+**/
+boolean meccano::buzz_setup(int gpio) {
+  BUZZ = gpio;
+  pinMode(BUZZ, OUTPUT);
   return true;
 }
 
@@ -206,6 +216,7 @@ boolean meccano::registration() {
     lineNumber++;
     if (lineNumber == 11) {
      DEVICE_GROUP = line.substring(1, 4);
+	 Serial.println("Device Group: " + DEVICE_GROUP);
      break;
     }
   }
@@ -225,6 +236,19 @@ void meccano::led_status(int status[]){
   int passo;
   for (passo = 0; passo < 10; passo++) {
     digitalWrite(LED, status[passo]);
+    delay (100);
+  }
+}
+
+/**
+**  Buzz notification
+**/
+void meccano::buzz(int status[]){
+  // If buzz is not configured, skip
+  if(BUZZ == 0) return;
+  int passo;
+  for (passo = 0; passo < 10; passo++) {
+    digitalWrite(BUZZ, status[passo]);
     delay (100);
   }
 }
@@ -389,6 +413,12 @@ boolean meccano::data_exists() {
 * Send all data of file and then remove it
 **/
 boolean meccano::data_sync() {
+  Serial.println("Syncing data...");
+  if(DEBUG) {
+	  Serial.println("===");
+	  data_show();
+	  Serial.println("===");
+  }
   Serial.println("Testing Connection...");
   WiFiClient client;
   if (!client.connect(HOST, PORT)) {
@@ -400,16 +430,16 @@ boolean meccano::data_sync() {
   Serial.println("Checking local data...");
   Serial.println("Local data exists. Sending...");
   File f = data_open();
-  String block = "[";
-  while(f.available()) {
+  String block = "";
+    while(f.available()) {
     String line = f.readStringUntil('\n');
     block += line;
     numLinhas++;
     if(numLinhas > (BLOCK_SIZE - 1)) {
-      block += "]";
+	  Serial.println("++++");
       Serial.println(block);
+	  Serial.println("++++");
       fact_send(block);
-      block = "[";
       numLinhas = 0;
     } else {
         block += ",";
@@ -418,7 +448,6 @@ boolean meccano::data_sync() {
   // If there is any remaining data to send...
   if(numLinhas > 0) {
       block = block.substring(0, block.length() - 1);
-      block = block + "]";
       Serial.println(block);
       fact_send(block);
   }
@@ -452,6 +481,15 @@ void meccano::data_show() {
   }
   f.close();
 }
+
+/**
+*  Format the file system
+*/
+void meccano::data_format() {
+  Serial.println("Formating the file system... ");
+  SPIFFS.format();
+}
+
 
 /**
 *  Write fact to local data file
