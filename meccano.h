@@ -37,15 +37,20 @@ class meccano {
     ~meccano();
     // Setup functions
     boolean led_setup(int gpio);
+	boolean buzz_setup(int gpio);
     boolean setup(char *ssid, char *password, char *host, int port);
 
     // Data functions
     boolean data_exists();
     boolean data_sync();
+	void data_format();
     void data_show();
 
     // Led functions
     void led_status(int status[]);
+	
+	// Buzz functions
+    void buzz(int status[]);
 
     // Checkpoint functions
     void checkpoint(int id);

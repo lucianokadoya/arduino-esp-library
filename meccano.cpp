@@ -29,6 +29,7 @@ uint16_t PORT = 80;
 String DEVICE_GROUP = "0";
 
 int LED = 0;
+int BUZZ = 0;
 
 // Led status list
 int STATUS_NO_CONNECTION[10] = {0,0,0,0,0,1,1,1,1,0};
@@ -80,6 +81,11 @@ boolean meccano::setup(char *ssid, char *password, char *host, int port) {
   boolean server = server_setup(host, port);
   boolean reg = registration();
   boolean clock = clock_setup();
+  // if device group not received, then restart.
+  if (DEVICE_GROUP == "0") {
+   Serial.println("Device Group Unknown. Restarting...");
+   ESP.restart();
+  }
   return (dev && wifi && server && reg && clock);
 }
 
@@ -126,6 +132,15 @@ boolean meccano::led_setup(int gpio) {
 }
 
 /**
+** BUZZ SETUP
+**/
+boolean meccano::buzz_setup(int gpio) {
+  BUZZ = gpio;
+  pinMode(BUZZ, OUTPUT);
+  return true;
+}
+
+/**
 **  Clock setup
 **/
 boolean meccano::clock_setup() {
@@ -148,8 +163,8 @@ boolean meccano::clock_setup() {
     if (lineNumber == 11) {
      serverTime = line.substring(1, 14);
      // Check if the timestamp
-     String firstDigit = serverTime.substring(1, 1);
-     if(!isDigit(firstDigit.charAt(1))) {
+     String firstDigit = serverTime.substring(0, 1);
+     if(!isDigit(firstDigit.charAt(0))) {
        Serial.println("Time not received or not authorized to connect to Meccano Network. Rebooting...");
        led_status(STATUS_NO_CONNECTION);
        ESP.restart();
@@ -200,17 +215,24 @@ boolean meccano::registration() {
              dadosJson + "\r\n" +
              "\r\n";
   if(DEBUG) client.print(envelope);
-  delay(100);
+  delay(500);
+  String line = "";
   while(client.available()) {
     String line = client.readStringUntil('\r');
-    lineNumber++;
-    if (lineNumber == 11) {
-     DEVICE_GROUP = line.substring(1, 4);
-     break;
-    }
-  }
+	// if(DEBUG) Serial.println(line);
+	// delay(10);
+    // lineNumber++;
+    // if (lineNumber == 11) {
+    //  DEVICE_GROUP = line.substring(1, 4);	 
+    // break;
+    // }
+	DEVICE_GROUP = line.substring(1, 4);	 
+ }
+ Serial.println("Device Group: " + DEVICE_GROUP);
+ 
  Serial.println();
  Serial.println("Closing Connection.");
+ 
  led_status(STATUS_DATA_SENT);
  return true;
 }
@@ -225,6 +247,19 @@ void meccano::led_status(int status[]){
   int passo;
   for (passo = 0; passo < 10; passo++) {
     digitalWrite(LED, status[passo]);
+    delay (100);
+  }
+}
+
+/**
+**  Buzz notification
+**/
+void meccano::buzz(int status[]){
+  // If buzz is not configured, skip
+  if(BUZZ == 0) return;
+  int passo;
+  for (passo = 0; passo < 10; passo++) {
+    digitalWrite(BUZZ, status[passo]);
     delay (100);
   }
 }
@@ -389,6 +424,12 @@ boolean meccano::data_exists() {
 * Send all data of file and then remove it
 **/
 boolean meccano::data_sync() {
+  Serial.println("Syncing data...");
+  if(DEBUG) {
+	  Serial.println("===");
+	  data_show();
+	  Serial.println("===");
+  }
   Serial.println("Testing Connection...");
   WiFiClient client;
   if (!client.connect(HOST, PORT)) {
@@ -400,16 +441,16 @@ boolean meccano::data_sync() {
   Serial.println("Checking local data...");
   Serial.println("Local data exists. Sending...");
   File f = data_open();
-  String block = "[";
-  while(f.available()) {
+  String block = "";
+    while(f.available()) {
     String line = f.readStringUntil('\n');
     block += line;
     numLinhas++;
     if(numLinhas > (BLOCK_SIZE - 1)) {
-      block += "]";
+	  Serial.println("++++");
       Serial.println(block);
+	  Serial.println("++++");
       fact_send(block);
-      block = "[";
       numLinhas = 0;
     } else {
         block += ",";
@@ -418,7 +459,6 @@ boolean meccano::data_sync() {
   // If there is any remaining data to send...
   if(numLinhas > 0) {
       block = block.substring(0, block.length() - 1);
-      block = block + "]";
       Serial.println(block);
       fact_send(block);
   }
@@ -452,6 +492,15 @@ void meccano::data_show() {
   }
   f.close();
 }
+
+/**
+*  Format the file system
+*/
+void meccano::data_format() {
+  Serial.println("Formating the file system... ");
+  SPIFFS.format();
+}
+
 
 /**
 *  Write fact to local data file
