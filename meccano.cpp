@@ -48,7 +48,7 @@ unsigned long CHECK_POINT[11] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 String MAC_ADDRESS = "99:99:99:99:99:99";
 
 // DEBUG. Default = ON
-boolean DEBUG = false;
+boolean DEBUG = true;
 
 #define BLOCK_SIZE 15
 
@@ -81,6 +81,11 @@ boolean meccano::setup(char *ssid, char *password, char *host, int port) {
   boolean server = server_setup(host, port);
   boolean reg = registration();
   boolean clock = clock_setup();
+  // if device group not received, then restart.
+  if (DEVICE_GROUP == "0") {
+   Serial.println("Device Group Unknown. Restarting...");
+   ESP.restart();
+  }
   return (dev && wifi && server && reg && clock);
 }
 
@@ -210,18 +215,24 @@ boolean meccano::registration() {
              dadosJson + "\r\n" +
              "\r\n";
   if(DEBUG) client.print(envelope);
-  delay(100);
+  delay(500);
+  String line = "";
   while(client.available()) {
     String line = client.readStringUntil('\r');
-    lineNumber++;
-    if (lineNumber == 11) {
-     DEVICE_GROUP = line.substring(1, 4);
-	 Serial.println("Device Group: " + DEVICE_GROUP);
-     break;
-    }
-  }
+	// if(DEBUG) Serial.println(line);
+	// delay(10);
+    // lineNumber++;
+    // if (lineNumber == 11) {
+    //  DEVICE_GROUP = line.substring(1, 4);	 
+    // break;
+    // }
+	DEVICE_GROUP = line.substring(1, 4);	 
+ }
+ Serial.println("Device Group: " + DEVICE_GROUP);
+ 
  Serial.println();
  Serial.println("Closing Connection.");
+ 
  led_status(STATUS_DATA_SENT);
  return true;
 }
