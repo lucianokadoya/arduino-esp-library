@@ -32,10 +32,11 @@ int LED = 0;
 int BUZZ = 0;
 
 // Led status list
-int STATUS_NO_CONNECTION[10] = {0,0,0,0,0,1,1,1,1,0};
-int STATUS_CONNECTION[10]    = {1,1,1,1,1,0,0,0,0,0};
-int STATUS_DATA_SENT[10]     = {1,0,1,0,1,0,0,0,0,0};
-int STATUS_DATA_ERROR[10]    = {1,1,1,1,1,1,1,1,1,0};
+int STATUS_NO_CONNECTION[10]  = {0,0,0,0,0,1,1,1,1,0};
+int STATUS_CONNECTION_ON[10]  = {1,1,1,1,1,1,1,1,1,1};
+int STATUS_CONNECTION_OFF[10] = {0,0,0,0,0,0,0,0,0,0};
+int STATUS_DATA_SENT[10]      = {1,0,1,0,1,0,0,0,0,0};
+int STATUS_DATA_ERROR[10]     = {1,1,1,1,1,1,1,1,1,0};
 int CONNECTION_RETRIES = 50;
 
 // Timestamp for start of operation
@@ -48,7 +49,7 @@ unsigned long CHECK_POINT[11] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 String MAC_ADDRESS = "99:99:99:99:99:99";
 
 // DEBUG. Default = ON
-boolean DEBUG = true;
+boolean DEBUG = false;
 
 #define BLOCK_SIZE 15
 
@@ -99,8 +100,9 @@ boolean meccano::wifi_setup(char *ssid, char *password) {
   int retries = CONNECTION_RETRIES;
   Serial.println("Starting wifi...");
   while (WiFi.status() != WL_CONNECTED) {
-    led_status(STATUS_CONNECTION);
+    led_status(STATUS_CONNECTION_ON);	
     Serial.print(".");
+	led_status(STATUS_CONNECTION_OFF);
     retries--;
     if(retries <= 0) {
       Serial.println();
@@ -196,6 +198,7 @@ String meccano::registration_create(String mac) {
 **  Register device in the Meccano Gateway
 **/
 boolean meccano::registration() {
+  Serial.println("Starting Registration...");
   int lineNumber = 0;
   WiFiClient client;
   if (!client.connect(HOST , PORT)) {
@@ -214,25 +217,18 @@ boolean meccano::registration() {
              "\r\n" +
              dadosJson + "\r\n" +
              "\r\n";
-  if(DEBUG) client.print(envelope);
+  if(DEBUG) Serial.println(envelope);
+  client.print(envelope);
   delay(500);
   String line = "";
   while(client.available()) {
     String line = client.readStringUntil('\r');
-	// if(DEBUG) Serial.println(line);
-	// delay(10);
-    // lineNumber++;
-    // if (lineNumber == 11) {
-    //  DEVICE_GROUP = line.substring(1, 4);	 
-    // break;
-    // }
-	DEVICE_GROUP = line.substring(1, 4);	 
+	if(DEBUG) Serial.println(line);
+	int dgLen = line.length();
+	DEVICE_GROUP = line.substring(1, dgLen);	 
  }
  Serial.println("Device Group: " + DEVICE_GROUP);
- 
- Serial.println();
  Serial.println("Closing Connection.");
- 
  led_status(STATUS_DATA_SENT);
  return true;
 }
@@ -244,8 +240,9 @@ boolean meccano::registration() {
 void meccano::led_status(int status[]){
   // If led is not configured, skip
   if(LED == 0) return;
+  int statusSize = 10;
   int passo;
-  for (passo = 0; passo < 10; passo++) {
+  for (passo = 0; passo < statusSize; passo++) {
     digitalWrite(LED, status[passo]);
     delay (100);
   }
@@ -255,10 +252,11 @@ void meccano::led_status(int status[]){
 **  Buzz notification
 **/
 void meccano::buzz(int status[]){
-  // If buzz is not configured, skip
+  // If buzz is not configured, skip  
   if(BUZZ == 0) return;
-  int passo;
-  for (passo = 0; passo < 10; passo++) {
+  int statusSize = 10;
+    int passo;
+  for (passo = 0; passo < statusSize; passo++) {
     digitalWrite(BUZZ, status[passo]);
     delay (100);
   }
@@ -370,7 +368,7 @@ String meccano::fact_create(String channel, int sensor, int value) {
   f += "\"channel\":\"" + channel + "\",";
   f += "\"start\":" + START_OF_OPERATION + ",";
   f += "\"delta\":" + String(millis())  + ",";
-  f += "\"device_group\":" + String(DEVICE_GROUP)  + ",";
+  f += "\"device_group\": \"" + String(DEVICE_GROUP)  + "\",";
   f += "\"device\": \"" + String(MAC_ADDRESS)  + "\",";
   f += "\"sensor\":" + String(sensor)  + ",";
   f += "\"data\":" + String(value);
