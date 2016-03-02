@@ -31,12 +31,13 @@ String DEVICE_GROUP = "0";
 int LED = 0;
 int BUZZ = 0;
 
-// Led status list
-int STATUS_NO_CONNECTION[10]  = {0,0,0,0,0,1,1,1,1,0};
-int STATUS_CONNECTION_ON[10]  = {1,1,1,1,1,1,1,1,1,1};
-int STATUS_CONNECTION_OFF[10] = {0,0,0,0,0,0,0,0,0,0};
-int STATUS_DATA_SENT[10]      = {1,0,1,0,1,0,0,0,0,0};
-int STATUS_DATA_ERROR[10]     = {1,1,1,1,1,1,1,1,1,0};
+// Notifications
+String STATUS_NO_CONNECTION  = "0000011110";
+String STATUS_CONNECTION_ON  = "1111111111";
+String STATUS_CONNECTION_OFF = "0000000000";
+String STATUS_DATA_SENT      = "1010100000";
+String STATUS_DATA_ERROR     = "1111111110";
+
 int CONNECTION_RETRIES = 50;
 
 // Timestamp for start of operation
@@ -237,27 +238,32 @@ boolean meccano::registration() {
 /**
 **  Show the status of device using a LED
 **/
-void meccano::led_status(int status[]){
-  // If led is not configured, skip
-  if(LED == 0) return;
-  int statusSize = 10;
-  int passo;
-  for (passo = 0; passo < statusSize; passo++) {
-    digitalWrite(LED, status[passo]);
-    delay (100);
-  }
+void meccano::led_status(String status){
+	notify(status, LED);
 }
 
 /**
 **  Buzz notification
 **/
-void meccano::buzz(int status[]){
+void meccano::buzz(String status){
+	notify(status, BUZZ);
+}
+
+/**
+**  Buzz notification
+**/
+void meccano::notify(String status, int gpio){
   // If buzz is not configured, skip  
-  if(BUZZ == 0) return;
-  int statusSize = 10;
-    int passo;
-  for (passo = 0; passo < statusSize; passo++) {
-    digitalWrite(BUZZ, status[passo]);
+  if(gpio == 0) return;
+  int statusSize = status.length();
+  int pass;
+  for (pass = 0; pass < statusSize; pass++) {
+	char charact = status[pass];	
+	if(charact == '1') {
+		digitalWrite(gpio, HIGH);
+	} else {
+		digitalWrite(gpio, LOW);
+	}
     delay (100);
   }
 }

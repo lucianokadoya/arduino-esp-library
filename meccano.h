@@ -47,11 +47,11 @@ class meccano {
     void data_show();
 
     // Led functions
-    void led_status(int status[]);
+    void led_status(String status);
 	
 	// Buzz functions
-    void buzz(int status[]);
-
+    void buzz(String status);
+	
     // Checkpoint functions
     void checkpoint(int id);
     boolean elapsed(int id, unsigned long elapsed_time);
@@ -77,6 +77,7 @@ class meccano {
     String registration_create(String mac);
     File data_open();
     boolean data_write(String fact);
+	void notify(String status, int gpio);
 };
 
 #endif
