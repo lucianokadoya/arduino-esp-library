@@ -428,7 +428,7 @@ boolean meccano::fact_send(String fact) {
 **  Check if file exists
 **/
 boolean meccano::data_exists() {
-  return SPIFFS.exists("/data.csv");
+  return SPIFFS.exists("/data.json");
 }
 
 
@@ -476,7 +476,7 @@ boolean meccano::data_sync() {
   }
   f.close();
   Serial.println("Erasing local data...");
-  SPIFFS.remove("/data.csv");
+  SPIFFS.remove("/data.json");
   return true;
 }
 
@@ -484,7 +484,7 @@ boolean meccano::data_sync() {
 *  Open the local data file
 */
 File meccano::data_open() {
-  File f = SPIFFS.open("/data.csv", "a+");
+  File f = SPIFFS.open("/data.json", "a+");
   if(f) {
   } else {
     Serial.println("Could not open local data file...");
