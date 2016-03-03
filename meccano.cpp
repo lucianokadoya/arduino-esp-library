@@ -344,6 +344,14 @@ void meccano::messages_execute() {
       Serial.println("BLINK command received...");
       for (int i = 0; i < 20 ; i++) led_status(STATUS_DATA_ERROR);
     }
+	if (line == "PURGE") {
+	  Serial.println("PURGE command received...");
+	  data_format();
+	}
+	if (line == "FORCE_SYNC") {
+      Serial.println("FORCE_SYNC command received...");
+      data_sync();
+	}
   }
   Serial.println();
   Serial.println("Closing connection...");
