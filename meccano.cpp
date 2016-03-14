@@ -536,7 +536,7 @@ String meccano::get_id() {
 **  OTA Update
 **/
 boolean meccano::ota_update(const char *current_version) {
-  String urlTemp = + "http://" + String(HOST) + ":" + String(PORT) + "/releases/esp";
+  String urlTemp = + "http://" + String(HOST) + ":" + String(PORT) + "/releases/ESP8266/update";
   char arr[urlTemp.length()+1]; 
   arr[urlTemp.length()]=0;
   urlTemp.toCharArray(arr, urlTemp.length()+1); 
