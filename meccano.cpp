@@ -27,6 +27,7 @@ String SSID_PW = "";
 char *HOST;
 uint16_t PORT = 80;
 String DEVICE_GROUP = "0";
+String TOKEN = "0";
 
 int LED = 0;
 int BUZZ = 0;
@@ -49,7 +50,6 @@ unsigned long CHECK_POINT[11] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 // Mac address
 String MAC_ADDRESS = "99:99:99:99:99:99";
 
-// DEBUG. Default = ON
 boolean DEBUG = false;
 
 #define BLOCK_SIZE 15
@@ -84,7 +84,7 @@ boolean meccano::setup(char *ssid, char *password, char *host, int port) {
   boolean reg = registration();
   boolean clock = clock_setup();
   // if device group not received, then restart.
-  if (DEVICE_GROUP == "0") {
+  if (DEVICE_GROUP == "\"NON_AUTHORIZED\"") {
    Serial.println("Device Group Unknown. Restarting...");
    ESP.restart();
   }
@@ -147,7 +147,6 @@ boolean meccano::buzz_setup(int gpio) {
 **  Clock setup
 **/
 boolean meccano::clock_setup() {
-  int lineNumber = 0;
   String serverTime;
   Serial.println("Getting time from server...");
   WiFiClient client;
@@ -156,26 +155,27 @@ boolean meccano::clock_setup() {
     led_status(STATUS_NO_CONNECTION);
     ESP.restart();
   }
-  client.print(String("GET ") + "http://" + HOST + ":" + PORT + "/" + MAC_ADDRESS + " HTTP/1.1\r\n" +
+  client.print(String("GET ") + "http://" + HOST + ":" + PORT + "/api/gateway/" + MAC_ADDRESS + " HTTP/1.1\r\n" +
                "Host: " + HOST + "\r\n" +
+			   "User-Agent: Meccano-IoT (meccano)\r\n" + 
+			   "Authorization: " + TOKEN + "\r\n" +
                "Connection: close\r\n\r\n");
   delay(5000);
+  String line = "", anterior ="";
   while(client.available()) {
-    String line = client.readStringUntil('\r');
-    lineNumber++;
-    if (lineNumber == 11) {
-     serverTime = line.substring(1, 14);
-     // Check if the timestamp
-     String firstDigit = serverTime.substring(0, 1);
-     if(!isDigit(firstDigit.charAt(0))) {
-       Serial.println("Time not received or not authorized to connect to Meccano Network. Rebooting...");
-       led_status(STATUS_NO_CONNECTION);
-       ESP.restart();
-     }
-     START_OF_OPERATION = serverTime;
-     Serial.println("Start of operation: " + START_OF_OPERATION);
-     break;
-    }
+	line = client.readStringUntil('\r');
+	if(DEBUG) Serial.println(line);
+	START_OF_OPERATION = anterior;
+	anterior = line.substring(1, line.length());
+  }  
+  String sample = START_OF_OPERATION.substring(0, 5);
+  long test = sample.toInt();
+  if(test > 0) {
+	Serial.println("Start of Operation: " + START_OF_OPERATION);
+  } else {
+	Serial.println("Non authorized. Rebooting...");
+	led_status(STATUS_NO_CONNECTION);
+	ESP.restart();
   }
   Serial.println("Closing Connection...");
   // Create the checkpoint 0 for message processing
@@ -184,39 +184,22 @@ boolean meccano::clock_setup() {
 }
 
 /**
-**  Create the registration record
-**/
-String meccano::registration_create(String mac) {
-  String reg = "";
-  reg += "{";
-  reg += "\"operation\": \"PUT\",";
-  reg += "\"device\": \"" + mac + "\"";
-  reg += "}";
-  return reg;
-}
-
-/**
 **  Register device in the Meccano Gateway
 **/
 boolean meccano::registration() {
   Serial.println("Starting Registration...");
-  int lineNumber = 0;
   WiFiClient client;
   if (!client.connect(HOST , PORT)) {
     Serial.println("Connection failed.");
     led_status(STATUS_NO_CONNECTION);
     ESP.restart();
   }
-  String dadosJson = registration_create(MAC_ADDRESS);
   String device_group;
-  String envelope = String("PUT ") + "http://" + HOST + "/api/registration/" + " HTTP/1.1\r\n" +
-             "Accept: application/json\r\n" +
+  String envelope = String("PUT ") + "http://" + HOST + "/api/gateway/" + MAC_ADDRESS + " HTTP/1.1\r\n" +
+             "Accept: text/plain\r\n" +
              "Host: " + HOST + "\r\n" +
              "Content-Type: application/json\r\n" +
-             "User-Agent: Meccano/1.0\r\n" +
-             "Content-Length: " + String(dadosJson.length()) + "\r\n" +
-             "\r\n" +
-             dadosJson + "\r\n" +
+             "User-Agent: Meccano-IoT (meccano)\r\n" +           
              "\r\n";
   if(DEBUG) Serial.println(envelope);
   client.print(envelope);
@@ -225,13 +208,14 @@ boolean meccano::registration() {
   while(client.available()) {
     String line = client.readStringUntil('\r');
 	if(DEBUG) Serial.println(line);
-	int dgLen = line.length();
-	DEVICE_GROUP = line.substring(1, dgLen);	 
- }
- Serial.println("Device Group: " + DEVICE_GROUP);
- Serial.println("Closing Connection.");
- led_status(STATUS_DATA_SENT);
- return true;
+	DEVICE_GROUP = TOKEN;
+	TOKEN = line.substring(1, line.length());
+  }
+  Serial.println("Device Group: " + DEVICE_GROUP);
+  Serial.println("TOKEN: " + TOKEN);
+  Serial.println("Closing Connection.");
+  led_status(STATUS_DATA_SENT);
+  return true;
 }
 
 
@@ -329,9 +313,11 @@ void meccano::messages_execute() {
     led_status(STATUS_NO_CONNECTION);
     return;
   }
-  client.print(String("GET ") + "http://" + HOST + ":" + PORT + "/" + MAC_ADDRESS + " HTTP/1.1\r\n" +
-               "Host: " + HOST + "\r\n" +
-               "Connection: close\r\n\r\n");
+  client.print(String("GET ") + "http://" + HOST + ":" + PORT + "/api/gateway/" + MAC_ADDRESS + " HTTP/1.1\r\n" +
+            "Host: " + HOST + "\r\n" +
+			"User-Agent: Meccano-IoT (meccano)\r\n" +
+			"Authorization: " + TOKEN + "\r\n" + 
+            "Connection: close\r\n\r\n");
   delay(500);
   while(client.available()) {
     String line = client.readStringUntil('\r');
@@ -394,21 +380,24 @@ String meccano::fact_create(String channel, int sensor, int value) {
 /**
 **  Send fact
 **/
-boolean meccano::fact_send(String fact) {
+boolean meccano::fact_send(String fact, int mode) {
   WiFiClient client;
   if (!client.connect(HOST , PORT)) {
     Serial.println("Connection lost.");
     led_status(STATUS_NO_CONNECTION);
-    data_write(fact);
-    return false;
+    if (mode == MODE_PERSISTENT) {
+		data_write(fact);
+	}
+	return false;
   }
   fact = "[ " + fact + " ]";
-  String envelope = String("POST ") + "http://" + HOST + ":" + PORT + "/" + MAC_ADDRESS +  "/ HTTP/1.1\r\n" +
+  String envelope = String("POST ") + "http://" + HOST + ":" + PORT + "/api/gateway/" + MAC_ADDRESS +  "/ HTTP/1.1\r\n" +
              "Accept: application/json\r\n" +
              "Host: " + HOST + "\r\n" +
              "Content-Type:application/json\r\n" +
-             "User-Agent: Meccano/1.0\r\n" +
+             "User-Agent: Meccano-IoT (meccano)\r\n" +
              "Content-Length: " + String(fact.length()) + "\r\n" +
+			 "Authorization: " + TOKEN + "\r\n" +
              "\r\n" +
              fact +
              "\r\n";
@@ -428,7 +417,7 @@ boolean meccano::fact_send(String fact) {
 **  Check if file exists
 **/
 boolean meccano::data_exists() {
-  return SPIFFS.exists("/data.csv");
+  return SPIFFS.exists("/data.json");
 }
 
 
@@ -436,6 +425,7 @@ boolean meccano::data_exists() {
 * Send all data of file and then remove it
 **/
 boolean meccano::data_sync() {
+  boolean sync_status = true;
   Serial.println("Syncing data...");
   if(DEBUG) {
 	  Serial.println("===");
@@ -462,7 +452,7 @@ boolean meccano::data_sync() {
 	  Serial.println("++++");
       Serial.println(block);
 	  Serial.println("++++");
-      fact_send(block);
+      if(!fact_send(block, MODE_NON_PERSISTENT)) sync_status = false;
       numLinhas = 0;
     } else {
         block += ",";
@@ -472,19 +462,18 @@ boolean meccano::data_sync() {
   if(numLinhas > 0) {
       block = block.substring(0, block.length() - 1);
       Serial.println(block);
-      fact_send(block);
+      if(!fact_send(block, MODE_NON_PERSISTENT)) sync_status = false;
   }
   f.close();
-  Serial.println("Erasing local data...");
-  SPIFFS.remove("/data.csv");
-  return true;
+  if(sync_status)  data_format();
+  return sync_status;
 }
 
 /**
 *  Open the local data file
 */
 File meccano::data_open() {
-  File f = SPIFFS.open("/data.csv", "a+");
+  File f = SPIFFS.open("/data.json", "a+");
   if(f) {
   } else {
     Serial.println("Could not open local data file...");

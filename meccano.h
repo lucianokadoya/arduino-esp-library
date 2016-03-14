@@ -30,11 +30,17 @@ const int DPORT2 = 13;
 const int DPORT3 = 2;
 const int DPORT4 = 12;
 
+// Persistence Modes
+const int MODE_PERSISTENT = 1;
+const int MODE_NON_PERSISTENT = 0;
+
 class meccano {
+
 
   public:
     meccano();
     ~meccano();
+	
     // Setup functions
     boolean led_setup(int gpio);
 	boolean buzz_setup(int gpio);
@@ -61,7 +67,7 @@ class meccano {
 
     // Fact functions
     String fact_create(String channel, int sensor, int value);
-    boolean fact_send(String fact);
+    boolean fact_send(String fact, int mode);
 
     // Utility functions
     String get_id();
