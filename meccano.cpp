@@ -101,7 +101,7 @@ boolean meccano::wifi_setup(char *ssid, char *password) {
   int retries = CONNECTION_RETRIES;
   Serial.println("Starting wifi...");
   while (WiFi.status() != WL_CONNECTED) {
-    led_status(STATUS_CONNECTION_ON);	
+    led_status(STATUS_CONNECTION_ON);
     Serial.print(".");
 	led_status(STATUS_CONNECTION_OFF);
     retries--;
@@ -226,7 +226,7 @@ boolean meccano::registration() {
     String line = client.readStringUntil('\r');
 	if(DEBUG) Serial.println(line);
 	int dgLen = line.length();
-	DEVICE_GROUP = line.substring(1, dgLen);	 
+	DEVICE_GROUP = line.substring(1, dgLen);
  }
  Serial.println("Device Group: " + DEVICE_GROUP);
  Serial.println("Closing Connection.");
@@ -253,12 +253,12 @@ void meccano::buzz(String status){
 **  Buzz notification
 **/
 void meccano::notify(String status, int gpio){
-  // If buzz is not configured, skip  
+  // If buzz is not configured, skip
   if(gpio == 0) return;
   int statusSize = status.length();
   int pass;
   for (pass = 0; pass < statusSize; pass++) {
-	char charact = status[pass];	
+	char charact = status[pass];
 	if(charact == '1') {
 		digitalWrite(gpio, HIGH);
 	} else {
@@ -325,9 +325,9 @@ void meccano::messages_execute() {
   Serial.println("Get commands from server...");
   WiFiClient client;
   if (!client.connect(HOST, PORT)) {
-    Serial.println("No connection...");
-    led_status(STATUS_NO_CONNECTION);
-    return;
+      Serial.println("No connection...");
+      led_status(STATUS_NO_CONNECTION);
+      return;
   }
   client.print(String("GET ") + "http://" + HOST + ":" + PORT + "/" + MAC_ADDRESS + " HTTP/1.1\r\n" +
                "Host: " + HOST + "\r\n" +
@@ -344,14 +344,14 @@ void meccano::messages_execute() {
       Serial.println("BLINK command received...");
       for (int i = 0; i < 20 ; i++) led_status(STATUS_DATA_ERROR);
     }
-	if (line == "PURGE") {
-	  Serial.println("PURGE command received...");
-	  data_format();
-	}
-	if (line == "FORCE_SYNC") {
+	  if (line == "PURGE") {
+	    Serial.println("PURGE command received...");
+	    data_format();
+	  }
+	  if (line == "FORCE_SYNC") {
       Serial.println("FORCE_SYNC command received...");
       data_sync();
-	}
+	  }
   }
   Serial.println();
   Serial.println("Closing connection...");
@@ -428,7 +428,7 @@ boolean meccano::fact_send(String fact) {
 **  Check if file exists
 **/
 boolean meccano::data_exists() {
-  return SPIFFS.exists("/data.csv");
+  return SPIFFS.exists("/data.json");
 }
 
 
@@ -476,7 +476,7 @@ boolean meccano::data_sync() {
   }
   f.close();
   Serial.println("Erasing local data...");
-  SPIFFS.remove("/data.csv");
+  SPIFFS.remove("/data.json");
   return true;
 }
 
@@ -484,7 +484,7 @@ boolean meccano::data_sync() {
 *  Open the local data file
 */
 File meccano::data_open() {
-  File f = SPIFFS.open("/data.csv", "a+");
+  File f = SPIFFS.open("/data.json", "a+");
   if(f) {
   } else {
     Serial.println("Could not open local data file...");
