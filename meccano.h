@@ -19,10 +19,14 @@
 #ifndef MECCANO_H
 
 #define MECCANO_H
-
+#include <ESP8266WiFi.h>
+#include <ESP8266WiFiMulti.h>
+#include <ESP8266HTTPClient.h>
+#include <ESP8266httpUpdate.h>
 #include <Arduino.h>
 #include "FS.h"
-#include <ESP8266WiFi.h>
+
+
 
 // list of Ports of Meccano Mini Board and GPIOs
 const int DPORT1 = 14;
@@ -44,7 +48,7 @@ class meccano {
     // Setup functions
     boolean led_setup(int gpio);
 	boolean buzz_setup(int gpio);
-    boolean setup(char *ssid, char *password, char *host, int port);
+    boolean setup(char *ssid, char *password, char *host, int port, const char* version);
 
     // Data functions
     boolean data_exists();
@@ -75,6 +79,7 @@ class meccano {
   private:
     boolean device_setup();
     boolean wifi_setup(char *ssid, char *password);
+	boolean ota_update(const char *version);
     boolean server_setup(char *host, int port);
     boolean clock_setup();
     boolean registration();

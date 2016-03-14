@@ -18,6 +18,9 @@
 */
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
+#include <ESP8266WiFiMulti.h>
+#include <ESP8266HTTPClient.h>
+#include <ESP8266httpUpdate.h>
 #include "FS.h"
 #include "meccano.h"
 
@@ -64,7 +67,7 @@ meccano::~meccano() {}
 /**
 **  All in one (main) setup function
 **/
-boolean meccano::setup(char *ssid, char *password, char *host, int port) {
+boolean meccano::setup(char *ssid, char *password, char *host, int port, const char *version) {
   delay(5000);
   SPIFFS.begin();
   Serial.println();
@@ -81,6 +84,7 @@ boolean meccano::setup(char *ssid, char *password, char *host, int port) {
   boolean dev = device_setup();
   boolean wifi = wifi_setup(ssid, password);
   boolean server = server_setup(host, port);
+  boolean ota  = ota_update(version);
   boolean reg = registration();
   boolean clock = clock_setup();
   // if device group not received, then restart.
@@ -525,4 +529,38 @@ boolean meccano::data_write(String fact) {
 **/
 String meccano::get_id() {
   return MAC_ADDRESS;
+}
+
+
+/**
+**  OTA Update
+**/
+boolean meccano::ota_update(const char *current_version) {
+  String urlTemp = + "http://" + String(HOST) + ":" + String(PORT) + "/releases/esp";
+  char arr[urlTemp.length()+1]; 
+  arr[urlTemp.length()]=0;
+  urlTemp.toCharArray(arr, urlTemp.length()+1); 
+  const char *url = arr;
+  Serial.print("Contacting update(OTA) server at: ");
+  Serial.println(url);
+  Serial.print("Actual version: ");
+  Serial.println(current_version);
+  t_httpUpdate_return ret = ESPhttpUpdate.update(url, current_version);
+   switch(ret) {  
+     case HTTP_UPDATE_FAILED:
+       Serial.print("HTTP_UPDATE_FAILED; Error (");
+       Serial.print(ESPhttpUpdate.getLastError());
+       Serial.print("): ");
+       Serial.println(ESPhttpUpdate.getLastErrorString().c_str());
+       return true;  
+     case HTTP_UPDATE_NO_UPDATES:
+       Serial.println("HTTP_UPDATE_NO_UPDATES");
+       return true;
+     case HTTP_UPDATE_OK:
+       Serial.println("HTTP_UPDATE_OK");
+       return true;
+     default:
+       Serial.println("OK");  
+	   return true;
+    }
 }
