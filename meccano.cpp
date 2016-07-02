@@ -241,12 +241,12 @@ void meccano::buzz(String status){
 **  Buzz notification
 **/
 void meccano::notify(String status, int gpio){
-  // If buzz is not configured, skip  
+  // If buzz is not configured, skip
   if(gpio == 0) return;
   int statusSize = status.length();
   int pass;
   for (pass = 0; pass < statusSize; pass++) {
-	char charact = status[pass];	
+	char charact = status[pass];
 	if(charact == '1') {
 		digitalWrite(gpio, HIGH);
 	} else {
