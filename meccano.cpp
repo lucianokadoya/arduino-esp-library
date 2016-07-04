@@ -105,7 +105,7 @@ boolean meccano::wifi_setup(char *ssid, char *password) {
   int retries = CONNECTION_RETRIES;
   Serial.println("Starting wifi...");
   while (WiFi.status() != WL_CONNECTED) {
-    led_status(STATUS_CONNECTION_ON);	
+    led_status(STATUS_CONNECTION_ON);
     Serial.print(".");
 	led_status(STATUS_CONNECTION_OFF);
     retries--;
@@ -161,7 +161,7 @@ boolean meccano::clock_setup() {
   }
   client.print(String("GET ") + "http://" + HOST + ":" + PORT + "/api/gateway/" + MAC_ADDRESS + " HTTP/1.1\r\n" +
                "Host: " + HOST + "\r\n" +
-			   "User-Agent: Meccano-IoT (meccano)\r\n" + 
+			   "User-Agent: Meccano-IoT (meccano)\r\n" +
 			   "Authorization: " + TOKEN + "\r\n" +
                "Connection: close\r\n\r\n");
   delay(5000);
@@ -171,7 +171,7 @@ boolean meccano::clock_setup() {
 	if(DEBUG) Serial.println(line);
 	START_OF_OPERATION = anterior;
 	anterior = line.substring(1, line.length());
-  }  
+  }
   String sample = START_OF_OPERATION.substring(0, 5);
   long test = sample.toInt();
   if(test > 0) {
@@ -203,7 +203,7 @@ boolean meccano::registration() {
              "Accept: text/plain\r\n" +
              "Host: " + HOST + "\r\n" +
              "Content-Type: application/json\r\n" +
-             "User-Agent: Meccano-IoT (meccano)\r\n" +           
+             "User-Agent: Meccano-IoT (meccano)\r\n" +
              "\r\n";
   if(DEBUG) Serial.println(envelope);
   client.print(envelope);
@@ -320,7 +320,7 @@ void meccano::messages_execute() {
   client.print(String("GET ") + "http://" + HOST + ":" + PORT + "/api/gateway/" + MAC_ADDRESS + " HTTP/1.1\r\n" +
             "Host: " + HOST + "\r\n" +
 			"User-Agent: Meccano-IoT (meccano)\r\n" +
-			"Authorization: " + TOKEN + "\r\n" + 
+			"Authorization: " + TOKEN + "\r\n" +
             "Connection: close\r\n\r\n");
   delay(500);
   while(client.available()) {
@@ -458,6 +458,7 @@ boolean meccano::data_sync() {
 	  Serial.println("++++");
       if(!fact_send(block, MODE_NON_PERSISTENT)) sync_status = false;
       numLinhas = 0;
+      block = "";
     } else {
         block += ",";
     }
@@ -537,22 +538,22 @@ String meccano::get_id() {
 **/
 boolean meccano::ota_update(const char *current_version) {
   String urlTemp = + "http://" + String(HOST) + ":" + String(PORT) + "/releases/ESP8266/update";
-  char arr[urlTemp.length()+1]; 
+  char arr[urlTemp.length()+1];
   arr[urlTemp.length()]=0;
-  urlTemp.toCharArray(arr, urlTemp.length()+1); 
+  urlTemp.toCharArray(arr, urlTemp.length()+1);
   const char *url = arr;
   Serial.print("Contacting update(OTA) server at: ");
   Serial.println(url);
   Serial.print("Actual version: ");
   Serial.println(current_version);
   t_httpUpdate_return ret = ESPhttpUpdate.update(url, current_version);
-   switch(ret) {  
+   switch(ret) {
      case HTTP_UPDATE_FAILED:
        Serial.print("HTTP_UPDATE_FAILED; Error (");
        Serial.print(ESPhttpUpdate.getLastError());
        Serial.print("): ");
        Serial.println(ESPhttpUpdate.getLastErrorString().c_str());
-       return true;  
+       return true;
      case HTTP_UPDATE_NO_UPDATES:
        Serial.println("HTTP_UPDATE_NO_UPDATES");
        return true;
@@ -560,7 +561,7 @@ boolean meccano::ota_update(const char *current_version) {
        Serial.println("HTTP_UPDATE_OK");
        return true;
      default:
-       Serial.println("OK");  
+       Serial.println("OK");
 	   return true;
     }
 }
