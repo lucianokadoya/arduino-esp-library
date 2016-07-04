@@ -458,7 +458,7 @@ boolean meccano::data_sync() {
 	  Serial.println("++++");
       if(!fact_send(block, MODE_NON_PERSISTENT)) sync_status = false;
       numLinhas = 0;
-      block = "";
+      block = " ";
     } else {
         block += ",";
     }
