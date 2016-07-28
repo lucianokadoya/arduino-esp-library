@@ -85,7 +85,7 @@ boolean meccano::setup(char *ssid, char *password, char *host, int port, const c
   boolean wifi = wifi_setup(ssid, password);
   boolean server = server_setup(host, port);
   boolean ota  = ota_update(version);
-  boolean reg = registration();
+  boolean reg = registration(version);
   boolean clock = clock_setup();
   // if device group not received, then restart.
   if (DEVICE_GROUP == "\"NON_AUTHORIZED\"") {
@@ -190,7 +190,7 @@ boolean meccano::clock_setup() {
 /**
 **  Register device in the Meccano Gateway
 **/
-boolean meccano::registration() {
+boolean meccano::registration(const char *current_version) {
   Serial.println("Starting Registration...");
   WiFiClient client;
   if (!client.connect(HOST , PORT)) {
@@ -204,6 +204,7 @@ boolean meccano::registration() {
              "Host: " + HOST + "\r\n" +
              "Content-Type: application/json\r\n" +
              "User-Agent: Meccano-IoT (meccano)\r\n" +
+             "Version: " + String(current_version) + "\r\n" +
              "\r\n";
   if(DEBUG) Serial.println(envelope);
   client.print(envelope);
@@ -216,6 +217,8 @@ boolean meccano::registration() {
 	TOKEN = line.substring(1, line.length());
   }
   Serial.println("Device Group: " + DEVICE_GROUP);
+  Serial.print("Version: ");
+  Serial.println(current_version);
   Serial.println("TOKEN: " + TOKEN);
   Serial.println("Closing Connection.");
   led_status(STATUS_DATA_SENT);
@@ -458,7 +461,7 @@ boolean meccano::data_sync() {
 	  Serial.println("++++");
       if(!fact_send(block, MODE_NON_PERSISTENT)) sync_status = false;
       numLinhas = 0;
-      block = " ";
+      block = "";
     } else {
         block += ",";
     }

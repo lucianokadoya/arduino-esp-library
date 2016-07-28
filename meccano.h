@@ -44,7 +44,7 @@ class meccano {
   public:
     meccano();
     ~meccano();
-	
+
     // Setup functions
     boolean led_setup(int gpio);
 	boolean buzz_setup(int gpio);
@@ -58,10 +58,10 @@ class meccano {
 
     // Led functions
     void led_status(String status);
-	
+
 	// Buzz functions
     void buzz(String status);
-	
+
     // Checkpoint functions
     void checkpoint(int id);
     boolean elapsed(int id, unsigned long elapsed_time);
@@ -82,7 +82,7 @@ class meccano {
 	boolean ota_update(const char *version);
     boolean server_setup(char *host, int port);
     boolean clock_setup();
-    boolean registration();
+    boolean registration(const char *version);
     String messages_get(String command);
     void messages_execute();
     String registration_create(String mac);
